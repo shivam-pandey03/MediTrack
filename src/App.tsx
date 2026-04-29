@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
+import Billing from "./pages/Billing";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -21,7 +22,7 @@ const App = () => (
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />
-            <Route path="/billing" element={<Placeholder title="Billing" description="Point-of-sale and invoicing tools are coming soon." />} />
+            <Route path="/billing" element={<Billing />} />
             <Route path="/reports" element={<Placeholder title="Reports" description="Analytics, sales reports and stock forecasts are coming soon." />} />
             <Route path="/settings" element={<Placeholder title="Settings" description="Workspace, user and notification settings are coming soon." />} />
           </Route>
