@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Package, AlertTriangle, CalendarClock, PackageX, ArrowUpRight } from "lucide-react";
+import { Package, AlertTriangle, CalendarClock, PackageX, ArrowUpRight, BellRing, XCircle, Clock, PackageMinus } from "lucide-react";
 import { useMedicines, getMedicineStatus, formatDate, formatCurrency } from "@/lib/medicines-store";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Link } from "react-router-dom";
@@ -22,6 +22,55 @@ const Dashboard = () => {
     () => [...medicines].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
     [medicines],
   );
+
+  const alerts = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const items: Array<{
+      id: string;
+      name: string;
+      issue: string;
+      value: string;
+      severity: "expired" | "near-expiry" | "stock";
+      sort: number;
+    }> = [];
+    for (const m of medicines) {
+      const exp = new Date(m.expiryDate);
+      const diffDays = Math.floor((exp.getTime() - today.getTime()) / 86400000);
+      if (diffDays < 0) {
+        items.push({ id: `${m.id}-exp`, name: m.name, issue: "Expired", value: formatDate(m.expiryDate), severity: "expired", sort: 0 });
+      } else if (diffDays <= 30) {
+        items.push({ id: `${m.id}-near`, name: m.name, issue: "Near Expiry", value: `${diffDays} day${diffDays === 1 ? "" : "s"} left`, severity: "near-expiry", sort: 1 });
+      }
+      if (m.quantity === 0) {
+        items.push({ id: `${m.id}-out`, name: m.name, issue: "Out of Stock", value: "0 units", severity: "stock", sort: 2 });
+      } else if (m.quantity < 10) {
+        items.push({ id: `${m.id}-low`, name: m.name, issue: "Low Stock", value: `${m.quantity} units`, severity: "stock", sort: 2 });
+      }
+    }
+    return items.sort((a, b) => a.sort - b.sort);
+  }, [medicines]);
+
+  const severityStyles = {
+    expired: {
+      row: "bg-destructive/5 border-destructive/20",
+      iconWrap: "bg-destructive/10 text-destructive",
+      label: "text-destructive",
+      Icon: XCircle,
+    },
+    "near-expiry": {
+      row: "bg-warning-soft/60 border-warning/20",
+      iconWrap: "bg-warning/15 text-warning",
+      label: "text-warning",
+      Icon: Clock,
+    },
+    stock: {
+      row: "bg-warning-soft/40 border-warning/20",
+      iconWrap: "bg-warning/15 text-warning",
+      label: "text-warning",
+      Icon: PackageMinus,
+    },
+  } as const;
 
   const cards = [
     { label: "Total Medicines", value: stats.total, icon: Package, accent: "primary" as const, hint: "Tracked SKUs" },
@@ -64,6 +113,51 @@ const Dashboard = () => {
           );
         })}
       </div>
+
+      {/* Active Alerts */}
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+        <header className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <BellRing className="size-4" />
+            </span>
+            <div>
+              <h3 className="text-base font-semibold">Active Alerts</h3>
+              <p className="text-xs text-muted-foreground">Issues requiring your attention right now</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            {alerts.length} active
+          </span>
+        </header>
+        <div className="divide-y divide-border">
+          {alerts.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <div className="text-sm font-medium">All clear</div>
+              <div className="mt-1 text-xs text-muted-foreground">No expired, low-stock, or near-expiry items.</div>
+            </div>
+          ) : (
+            alerts.map((a) => {
+              const s = severityStyles[a.severity];
+              const Icon = s.Icon;
+              return (
+                <div key={a.id} className={`flex items-center gap-4 border-l-4 px-5 py-3.5 ${s.row}`}>
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${s.iconWrap}`}>
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-foreground">{a.name}</div>
+                    <div className={`text-xs font-medium ${s.label}`}>{a.issue}</div>
+                  </div>
+                  <div className="shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">
+                    {a.value}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
 
       {/* Recent table */}
       <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
