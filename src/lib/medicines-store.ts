@@ -1,4 +1,17 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "./firebase";
 
 export type Medicine = {
   id: string;
@@ -14,81 +27,89 @@ export type Medicine = {
 
 export type MedicineInput = Omit<Medicine, "id" | "createdAt" | "updatedAt">;
 
-export type MedicineStatus = "in-stock" | "low-stock" | "out-of-stock" | "expired" | "near-expiry";
+export type MedicineStatus =
+  | "in-stock"
+  | "low-stock"
+  | "out-of-stock"
+  | "expired"
+  | "near-expiry";
 
-const STORAGE_KEY = "meditrack:medicines";
+const COLLECTION = "medicines";
 
-const seed = (): Medicine[] => {
-  const now = Date.now();
-  const day = 86400000;
-  const iso = (offset: number) =>
-    new Date(now + offset * day).toISOString().slice(0, 10);
-  return [
-    { id: "m1", name: "Amoxicillin", batchNumber: "AMX-500-01", expiryDate: iso(420), quantity: 240, price: 0.45, manufacturer: "Cipla", createdAt: now - 9 * day, updatedAt: now - 9 * day },
-    { id: "m2", name: "Lisinopril 10mg", batchNumber: "LIS-010-22", expiryDate: iso(15), quantity: 6, price: 0.18, manufacturer: "Sun Pharma", createdAt: now - 7 * day, updatedAt: now - 2 * day },
-    { id: "m3", name: "Atorvastatin 40mg", batchNumber: "ATV-040-09", expiryDate: iso(620), quantity: 1820, price: 0.32, manufacturer: "Pfizer", createdAt: now - 5 * day, updatedAt: now - 1 * day },
-    { id: "m4", name: "Metformin 500mg", batchNumber: "MET-500-14", expiryDate: iso(-3), quantity: 80, price: 0.12, manufacturer: "Teva", createdAt: now - 30 * day, updatedAt: now - 30 * day },
-    { id: "m5", name: "Salbutamol Inhaler", batchNumber: "SAL-100-07", expiryDate: iso(28), quantity: 0, price: 8.5, manufacturer: "GSK", createdAt: now - 4 * day, updatedAt: now - 4 * day },
-    { id: "m6", name: "Omeprazole 20mg", batchNumber: "OMP-020-31", expiryDate: iso(380), quantity: 540, price: 0.22, manufacturer: "Dr. Reddy's", createdAt: now - 3 * day, updatedAt: now - 3 * day },
-    { id: "m7", name: "Paracetamol 500mg", batchNumber: "PCM-500-44", expiryDate: iso(210), quantity: 4, price: 0.05, manufacturer: "Cipla", createdAt: now - 2 * day, updatedAt: now - 2 * day },
-    { id: "m8", name: "Ibuprofen 400mg", batchNumber: "IBU-400-12", expiryDate: iso(95), quantity: 320, price: 0.09, manufacturer: "Hetero", createdAt: now - 1 * day, updatedAt: now - 1 * day },
-  ];
-};
-
-const load = (): Medicine[] => {
-  if (typeof window === "undefined") return seed();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const s = seed();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-      return s;
-    }
-    return JSON.parse(raw) as Medicine[];
-  } catch {
-    return seed();
-  }
-};
-
-let state: Medicine[] = load();
+let state: Medicine[] = [];
 const listeners = new Set<() => void>();
+let started = false;
 
-const persist = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
-  listeners.forEach((l) => l());
+const toMillis = (v: unknown): number => {
+  if (!v) return Date.now();
+  if (v instanceof Timestamp) return v.toMillis();
+  if (typeof v === "number") return v;
+  if (typeof v === "object" && v && "seconds" in (v as any)) {
+    return (v as any).seconds * 1000;
+  }
+  return Date.now();
 };
 
-const subscribe = (cb: () => void) => {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-};
-
-const getSnapshot = () => state;
-
-export const useMedicines = () =>
-  useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-
-export const addMedicine = (input: MedicineInput) => {
-  const now = Date.now();
-  state = [
-    { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now },
-    ...state,
-  ];
-  persist();
-};
-
-export const updateMedicine = (id: string, input: MedicineInput) => {
-  state = state.map((m) =>
-    m.id === id ? { ...m, ...input, updatedAt: Date.now() } : m,
+const startSubscription = () => {
+  if (started) return;
+  started = true;
+  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
+  onSnapshot(
+    q,
+    (snap) => {
+      state = snap.docs.map((d) => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          name: data.name ?? "",
+          batchNumber: data.batchNumber ?? "",
+          expiryDate: data.expiryDate ?? "",
+          quantity: Number(data.quantity ?? 0),
+          price: Number(data.price ?? 0),
+          manufacturer: data.manufacturer ?? "",
+          createdAt: toMillis(data.createdAt),
+          updatedAt: toMillis(data.updatedAt),
+        } as Medicine;
+      });
+      listeners.forEach((l) => l());
+    },
+    (err) => {
+      console.error("Firestore subscription error:", err);
+    },
   );
-  persist();
 };
 
-export const deleteMedicine = (id: string) => {
-  state = state.filter((m) => m.id !== id);
-  persist();
+export const useMedicines = (): Medicine[] => {
+  const [snap, setSnap] = useState<Medicine[]>(state);
+  useEffect(() => {
+    startSubscription();
+    const cb = () => setSnap(state);
+    listeners.add(cb);
+    cb();
+    return () => {
+      listeners.delete(cb);
+    };
+  }, []);
+  return snap;
+};
+
+export const addMedicine = async (input: MedicineInput) => {
+  await addDoc(collection(db, COLLECTION), {
+    ...input,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const updateMedicine = async (id: string, input: MedicineInput) => {
+  await updateDoc(doc(db, COLLECTION, id), {
+    ...input,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteMedicine = async (id: string) => {
+  await deleteDoc(doc(db, COLLECTION, id));
 };
 
 export const getMedicineStatus = (m: Medicine): MedicineStatus => {
@@ -107,4 +128,8 @@ export const formatCurrency = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 export const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
