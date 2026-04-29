@@ -56,7 +56,7 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
     return Object.keys(e).length === 0;
   };
 
-  const submit = (ev: React.FormEvent) => {
+  const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) return;
     const payload: MedicineInput = {
@@ -67,14 +67,23 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
       quantity: Number(form.quantity),
       price: Number(form.price),
     };
-    if (initial) {
-      updateMedicine(initial.id, payload);
-      toast({ title: "Medicine updated", description: payload.name });
-    } else {
-      addMedicine(payload);
-      toast({ title: "Medicine added", description: payload.name });
+    try {
+      if (initial) {
+        await updateMedicine(initial.id, payload);
+        toast({ title: "Medicine updated", description: payload.name });
+      } else {
+        await addMedicine(payload);
+        toast({ title: "Medicine added", description: payload.name });
+      }
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Save failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     }
-    onOpenChange(false);
   };
 
   return (
