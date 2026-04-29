@@ -33,12 +33,21 @@ const Inventory = () => {
   const openAdd = () => { setEditing(null); setDialogOpen(true); };
   const openEdit = (m: Medicine) => { setEditing(m); setDialogOpen(true); };
 
-  const onConfirmDelete = () => {
+  const onConfirmDelete = async () => {
     if (!confirmDelete) return;
     const name = confirmDelete.name;
-    deleteMedicine(confirmDelete.id);
-    setConfirmDelete(null);
-    toast({ title: "Medicine deleted", description: name });
+    try {
+      await deleteMedicine(confirmDelete.id);
+      toast({ title: "Medicine deleted", description: name });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setConfirmDelete(null);
+    }
   };
 
   return (
