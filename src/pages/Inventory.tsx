@@ -2,6 +2,13 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MedicineFormDialog } from "@/components/MedicineFormDialog";
 import {
@@ -20,15 +27,49 @@ import { toast } from "@/hooks/use-toast";
 const Inventory = () => {
   const medicines = useMedicines();
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<string>("all");
+  const [sort, setSort] = useState<string>("name");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Medicine | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Medicine | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return medicines;
-    return medicines.filter((m) => m.name.toLowerCase().includes(q));
-  }, [medicines, query]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in30 = new Date(today);
+    in30.setDate(in30.getDate() + 30);
+
+    let list = medicines.filter((m) => !q || m.name.toLowerCase().includes(q));
+
+    list = list.filter((m) => {
+      const exp = new Date(m.expiryDate);
+      switch (filter) {
+        case "in-stock":
+          return m.quantity >= 10;
+        case "low-stock":
+          return m.quantity > 0 && m.quantity < 10;
+        case "out-of-stock":
+          return m.quantity === 0;
+        case "near-expiry":
+          return exp >= today && exp <= in30;
+        case "expired":
+          return exp < today;
+        default:
+          return true;
+      }
+    });
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sort === "expiry") {
+        return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+      }
+      if (sort === "quantity") return a.quantity - b.quantity;
+      return a.name.localeCompare(b.name);
+    });
+    return sorted;
+  }, [medicines, query, filter, sort]);
 
   const openAdd = () => { setEditing(null); setDialogOpen(true); };
   const openEdit = (m: Medicine) => { setEditing(m); setDialogOpen(true); };
@@ -64,14 +105,43 @@ const Inventory = () => {
 
       {/* Search */}
       <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search medicines by name..."
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search medicines by name..."
+              className="pl-9"
+            />
+          </div>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="sm:w-48">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Medicines</SelectItem>
+              <SelectItem value="in-stock">In Stock</SelectItem>
+              <SelectItem value="low-stock">Low Stock</SelectItem>
+              <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+              <SelectItem value="near-expiry">Near Expiry</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="sm:w-56">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Sort by Name (A–Z)</SelectItem>
+              <SelectItem value="expiry">Sort by Expiry (earliest)</SelectItem>
+              <SelectItem value="quantity">Sort by Quantity (lowest)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="mt-3 text-xs text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{filtered.length}</span> of{" "}
+          <span className="font-medium text-foreground">{medicines.length}</span> medicines
         </div>
       </div>
 
