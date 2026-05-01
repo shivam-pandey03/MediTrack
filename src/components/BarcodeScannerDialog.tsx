@@ -23,16 +23,52 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    let activeStream: MediaStream | null = null;
     setError(null);
     setStarting(true);
     setScanning(false);
 
+    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(
+      typeof navigator !== "undefined" ? navigator.userAgent : "",
+    );
+
+    const getStream = async (): Promise<MediaStream> => {
+      const baseSize = {
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 30, max: 30 },
+      };
+      // 1) Preferred facing mode: environment on mobile, user on desktop.
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          video: { ...baseSize, facingMode: { ideal: isMobile ? "environment" : "user" } },
+          audio: false,
+        });
+      } catch (e1) {
+        console.warn("Preferred camera failed, trying opposite facing mode", e1);
+      }
+      // 2) Fallback: opposite facing mode.
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          video: { ...baseSize, facingMode: isMobile ? "user" : "environment" },
+          audio: false,
+        });
+      } catch (e2) {
+        console.warn("Opposite camera failed, trying any camera", e2);
+      }
+      // 3) Final fallback: any available camera.
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    };
+
     const start = async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Camera API not available in this browser");
+        }
+
         const hints = new Map();
         hints.set(DecodeHintType.TRY_HARDER, true);
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.QR_CODE,
           BarcodeFormat.CODE_128,
           BarcodeFormat.CODE_39,
           BarcodeFormat.EAN_13,
@@ -41,18 +77,29 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
           BarcodeFormat.UPC_E,
           BarcodeFormat.ITF,
           BarcodeFormat.CODABAR,
+          BarcodeFormat.QR_CODE,
           BarcodeFormat.DATA_MATRIX,
         ]);
         const reader = new BrowserMultiFormatReader(hints, {
-          delayBetweenScanAttempts: 100,
+          delayBetweenScanAttempts: 100, // ~10 fps
           delayBetweenScanSuccess: 500,
         });
 
         if (!videoRef.current) return;
-        const controls = await reader.decodeFromVideoDevice(
-          undefined,
+
+        activeStream = await getStream();
+        if (cancelled) {
+          activeStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        videoRef.current.srcObject = activeStream;
+        videoRef.current.setAttribute("playsinline", "true");
+        await videoRef.current.play().catch(() => {});
+
+        const controls = await reader.decodeFromVideoElement(
           videoRef.current,
-          (result, err, ctrls) => {
+          (result, _err, ctrls) => {
             if (cancelled) {
               ctrls.stop();
               return;
@@ -60,12 +107,19 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
             if (result) {
               onDetected(result.getText());
             }
-            // ignore per-frame decode errors (NotFoundException is normal)
           },
         );
-        controlsRef.current = controls;
+
+        const stopAll = () => {
+          try { controls.stop(); } catch { /* noop */ }
+          activeStream?.getTracks().forEach((t) => t.stop());
+          activeStream = null;
+          if (videoRef.current) videoRef.current.srcObject = null;
+        };
+        controlsRef.current = { stop: stopAll } as IScannerControls;
+
         if (cancelled) {
-          controls.stop();
+          stopAll();
           return;
         }
         setScanning(true);
@@ -73,7 +127,7 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
         console.error("Scanner error:", err);
         setError(
           err instanceof Error
-            ? err.message
+            ? `${err.message}. Allow camera permission and try again, or enter the barcode manually.`
             : "Unable to access camera. Check permissions or enter the barcode manually.",
         );
       } finally {
@@ -81,7 +135,6 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
       }
     };
 
-    // Wait one frame so the video element is mounted
     const t = setTimeout(start, 50);
 
     return () => {
@@ -92,6 +145,8 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
       if (ctrls) {
         try { ctrls.stop(); } catch { /* noop */ }
       }
+      activeStream?.getTracks().forEach((t) => t.stop());
+      activeStream = null;
       setScanning(false);
     };
   }, [open, onDetected]);
@@ -126,6 +181,7 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
               className="h-full w-full object-cover [filter:contrast(1.2)_brightness(1.1)]"
               muted
               playsInline
+              autoPlay
             />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="h-32 w-3/4 rounded-md border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
