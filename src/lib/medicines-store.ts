@@ -21,6 +21,7 @@ export type Medicine = {
   quantity: number;
   price: number;
   manufacturer: string;
+  barcode?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -67,6 +68,7 @@ const startSubscription = () => {
           quantity: Number(data.quantity ?? 0),
           price: Number(data.price ?? 0),
           manufacturer: data.manufacturer ?? "",
+          barcode: data.barcode ?? "",
           createdAt: toMillis(data.createdAt),
           updatedAt: toMillis(data.updatedAt),
         } as Medicine;

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Plus, Search, Pencil, Trash2, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MedicineFormDialog } from "@/components/MedicineFormDialog";
+import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMedicines, deleteMedicine, getMedicineStatus, formatCurrency, formatDate, type Medicine } from "@/lib/medicines-store";
+import { useMedicines, deleteMedicine, getMedicineStatus, formatCurrency, formatDate, type Medicine, type MedicineInput } from "@/lib/medicines-store";
 import { toast } from "@/hooks/use-toast";
 
 const Inventory = () => {
@@ -32,6 +33,8 @@ const Inventory = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Medicine | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Medicine | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [prefill, setPrefill] = useState<Partial<MedicineInput> | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,6 +77,26 @@ const Inventory = () => {
   const openAdd = () => { setEditing(null); setDialogOpen(true); };
   const openEdit = (m: Medicine) => { setEditing(m); setDialogOpen(true); };
 
+  const handleScanned = useCallback(
+    (code: string) => {
+      const trimmed = code.trim();
+      if (!trimmed) return;
+      setScannerOpen(false);
+      const match = medicines.find((m) => (m.barcode ?? "") === trimmed);
+      if (match) {
+        setEditing(match);
+        setPrefill(null);
+        toast({ title: "Medicine found", description: `${match.name} loaded for review.` });
+      } else {
+        setEditing(null);
+        setPrefill({ barcode: trimmed });
+        toast({ title: "New barcode", description: "Fill in the medicine details." });
+      }
+      setDialogOpen(true);
+    },
+    [medicines],
+  );
+
   const onConfirmDelete = async () => {
     if (!confirmDelete) return;
     const name = confirmDelete.name;
@@ -98,9 +121,14 @@ const Inventory = () => {
           <h2 className="text-2xl font-semibold tracking-tight">Medicine Inventory</h2>
           <p className="mt-1 text-sm text-muted-foreground">Manage your full medicine catalog and stock levels.</p>
         </div>
-        <Button onClick={openAdd} className="self-start sm:self-auto">
-          <Plus className="size-4" /> Add Medicine
-        </Button>
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <Button variant="outline" onClick={() => { setScannerOpen(true); }}>
+            <ScanLine className="size-4" /> Scan Barcode
+          </Button>
+          <Button onClick={openAdd}>
+            <Plus className="size-4" /> Add Medicine
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -211,7 +239,21 @@ const Inventory = () => {
         </div>
       </section>
 
-      <MedicineFormDialog open={dialogOpen} onOpenChange={setDialogOpen} initial={editing} />
+      <MedicineFormDialog
+        open={dialogOpen}
+        onOpenChange={(o) => {
+          setDialogOpen(o);
+          if (!o) setPrefill(null);
+        }}
+        initial={editing}
+        prefill={prefill}
+      />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onDetected={handleScanned}
+      />
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>
