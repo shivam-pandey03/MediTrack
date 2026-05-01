@@ -110,6 +110,13 @@ export const updateMedicine = async (id: string, input: MedicineInput) => {
   });
 };
 
+export const updateMedicineQuantity = async (id: string, quantity: number) => {
+  await updateDoc(doc(db, COLLECTION, id), {
+    quantity,
+    updatedAt: serverTimestamp(),
+  });
+};
+
 export const deleteMedicine = async (id: string) => {
   await deleteDoc(doc(db, COLLECTION, id));
 };
