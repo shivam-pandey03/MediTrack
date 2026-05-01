@@ -12,6 +12,7 @@ import {
 import { StatusBadge } from "@/components/StatusBadge";
 import { MedicineFormDialog } from "@/components/MedicineFormDialog";
 import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
+import { AddStockDialog } from "@/components/AddStockDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ const Inventory = () => {
   const [confirmDelete, setConfirmDelete] = useState<Medicine | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [prefill, setPrefill] = useState<Partial<MedicineInput> | null>(null);
+  const [stockTarget, setStockTarget] = useState<Medicine | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,15 +86,15 @@ const Inventory = () => {
       setScannerOpen(false);
       const match = medicines.find((m) => (m.barcode ?? "") === trimmed);
       if (match) {
-        setEditing(match);
-        setPrefill(null);
-        toast({ title: "Medicine found", description: `${match.name} loaded for review.` });
+        setStockTarget(match);
+        toast({ title: "Medicine found", description: `${match.name} — add to stock.` });
+        return;
       } else {
         setEditing(null);
         setPrefill({ barcode: trimmed });
         toast({ title: "New barcode", description: "Fill in the medicine details." });
+        setDialogOpen(true);
       }
-      setDialogOpen(true);
     },
     [medicines],
   );
@@ -253,6 +255,12 @@ const Inventory = () => {
         open={scannerOpen}
         onOpenChange={setScannerOpen}
         onDetected={handleScanned}
+      />
+
+      <AddStockDialog
+        open={!!stockTarget}
+        onOpenChange={(o) => { if (!o) setStockTarget(null); }}
+        medicine={stockTarget}
       />
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
