@@ -10,6 +10,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial?: Medicine | null;
+  prefill?: Partial<MedicineInput> | null;
 };
 
 const empty: MedicineInput = {
@@ -19,9 +20,10 @@ const empty: MedicineInput = {
   quantity: 0,
   price: 0,
   manufacturer: "",
+  barcode: "",
 };
 
-export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
+export const MedicineFormDialog = ({ open, onOpenChange, initial, prefill }: Props) => {
   const [form, setForm] = useState<MedicineInput>(empty);
   const [errors, setErrors] = useState<Partial<Record<keyof MedicineInput, string>>>({});
 
@@ -37,11 +39,12 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
               quantity: initial.quantity,
               price: initial.price,
               manufacturer: initial.manufacturer,
+              barcode: initial.barcode ?? "",
             }
-          : empty,
+          : { ...empty, ...(prefill ?? {}) },
       );
     }
-  }, [open, initial]);
+  }, [open, initial, prefill]);
 
   const validate = () => {
     const e: typeof errors = {};
@@ -64,6 +67,7 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
       name: form.name.trim(),
       batchNumber: form.batchNumber.trim(),
       manufacturer: form.manufacturer.trim(),
+      barcode: (form.barcode ?? "").trim(),
       quantity: Number(form.quantity),
       price: Number(form.price),
     };
@@ -131,6 +135,16 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial }: Props) => {
             <Label htmlFor="manufacturer">Manufacturer</Label>
             <Input id="manufacturer" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} placeholder="e.g. Cipla" />
             {errors.manufacturer && <p className="text-xs text-destructive">{errors.manufacturer}</p>}
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="barcode">Barcode (optional)</Label>
+            <Input
+              id="barcode"
+              value={form.barcode ?? ""}
+              onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+              placeholder="Scan or enter barcode number"
+            />
           </div>
 
           <DialogFooter className="sm:col-span-2">
