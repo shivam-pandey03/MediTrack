@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +12,12 @@ type Props = {
   onDetected: (code: string) => void;
 };
 
-const REGION_ID = "barcode-scanner-region";
-
 export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) => {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [manualCode, setManualCode] = useState("");
 
   useEffect(() => {
@@ -24,39 +25,50 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
     let cancelled = false;
     setError(null);
     setStarting(true);
+    setScanning(false);
 
     const start = async () => {
       try {
-        const formats = [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.CODABAR,
-        ];
-        const instance = new Html5Qrcode(REGION_ID, {
-          verbose: false,
-          formatsToSupport: formats,
+        const hints = new Map();
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.ITF,
+          BarcodeFormat.CODABAR,
+          BarcodeFormat.DATA_MATRIX,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints, {
+          delayBetweenScanAttempts: 100,
+          delayBetweenScanSuccess: 500,
         });
-        scannerRef.current = instance;
-        await instance.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 260, height: 160 } },
-          (decodedText) => {
-            if (cancelled) return;
-            onDetected(decodedText);
-          },
-          () => {
-            // ignore per-frame decode errors
+
+        if (!videoRef.current) return;
+        const controls = await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result, err, ctrls) => {
+            if (cancelled) {
+              ctrls.stop();
+              return;
+            }
+            if (result) {
+              onDetected(result.getText());
+            }
+            // ignore per-frame decode errors (NotFoundException is normal)
           },
         );
+        controlsRef.current = controls;
         if (cancelled) {
-          await instance.stop().catch(() => {});
+          controls.stop();
+          return;
         }
+        setScanning(true);
       } catch (err) {
         console.error("Scanner error:", err);
         setError(
@@ -69,20 +81,18 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
       }
     };
 
-    // Wait one frame so the region div is mounted
+    // Wait one frame so the video element is mounted
     const t = setTimeout(start, 50);
 
     return () => {
       cancelled = true;
       clearTimeout(t);
-      const inst = scannerRef.current;
-      scannerRef.current = null;
-      if (inst) {
-        inst
-          .stop()
-          .then(() => inst.clear())
-          .catch(() => {});
+      const ctrls = controlsRef.current;
+      controlsRef.current = null;
+      if (ctrls) {
+        try { ctrls.stop(); } catch { /* noop */ }
       }
+      setScanning(false);
     };
   }, [open, onDetected]);
 
@@ -110,10 +120,22 @@ export const BarcodeScannerDialog = ({ open, onOpenChange, onDetected }: Props) 
         </DialogHeader>
 
         <div className="space-y-3">
-          <div
-            id={REGION_ID}
-            className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted"
-          />
+          <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-black">
+            <video
+              ref={videoRef}
+              className="h-full w-full object-cover [filter:contrast(1.2)_brightness(1.1)]"
+              muted
+              playsInline
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="h-32 w-3/4 rounded-md border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+            </div>
+            {scanning && (
+              <div className="absolute left-2 top-2 rounded-md bg-background/80 px-2 py-1 text-xs font-medium text-foreground">
+                Scanning…
+              </div>
+            )}
+          </div>
           {starting && (
             <p className="text-xs text-muted-foreground">Starting camera…</p>
           )}
