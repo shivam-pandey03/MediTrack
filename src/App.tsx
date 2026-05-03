@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Billing from "./pages/Billing";
+import NearbyPharmacies from "./pages/NearbyPharmacies";
 import Placeholder from "./pages/Placeholder";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/billing" element={<Billing />} />
+              <Route path="/nearby" element={<NearbyPharmacies />} />
               <Route
                 path="/reports"
                 element={
