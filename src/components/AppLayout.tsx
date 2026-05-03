@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X, LogOut, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -11,6 +11,7 @@ const allNav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/billing", label: "Billing", icon: Receipt },
+  { to: "/nearby", label: "Nearby Pharmacies", icon: MapPin },
   { to: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
@@ -19,6 +20,7 @@ const titles: Record<string, string> = {
   "/": "Dashboard",
   "/inventory": "Medicine Inventory",
   "/billing": "Billing",
+  "/nearby": "Nearby Pharmacies",
   "/reports": "Reports",
   "/settings": "Settings",
 };
