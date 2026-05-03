@@ -146,12 +146,19 @@ export const AppLayout = () => {
               <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-card" />
             </button>
             <div className="hidden text-right sm:block">
-              <div className="text-sm font-medium leading-tight">Dr. E. Vance</div>
-              <div className="text-xs text-muted-foreground">Lead Pharmacist</div>
+              <div className="text-sm font-medium leading-tight">
+                {profile?.pharmacyName || "MediTrack"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {profile?.ownerName || profile?.email}{profile?.role ? ` · ${profile.role}` : ""}
+              </div>
             </div>
             <div className="flex size-9 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary ring-1 ring-inset ring-primary/20">
-              EV
+              {initials}
             </div>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="size-4" /> Logout
+            </Button>
           </div>
         </header>
 
