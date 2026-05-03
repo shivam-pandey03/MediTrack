@@ -1,14 +1,18 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { setMedicinesPharmacy } from "@/lib/medicines-store";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
-const nav = [
+const allNav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/billing", label: "Billing", icon: Receipt },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
+  { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
 
 const titles: Record<string, string> = {
@@ -23,6 +27,26 @@ export const AppLayout = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const title = titles[location.pathname] ?? "MediTrack";
+  const { profile, logout } = useAuth();
+  const isStaff = profile?.role === "staff";
+  const nav = allNav.filter((n) => !("adminOnly" in n && n.adminOnly) || !isStaff);
+
+  useEffect(() => {
+    setMedicinesPharmacy(profile?.pharmacyId ?? null);
+  }, [profile?.pharmacyId]);
+
+  const handleLogout = async () => {
+    await logout();
+    toast({ title: "Signed out" });
+  };
+
+  const initials =
+    (profile?.ownerName || profile?.email || "U")
+      .split(" ")
+      .map((s) => s[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   return (
     <div className="flex min-h-dvh w-full bg-background text-foreground">
