@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMedicines, formatCurrency, type Medicine } from "@/lib/medicines-store";
+import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import {
   addDoc,
@@ -34,6 +35,7 @@ type GeneratedBill = {
 
 const Billing = () => {
   const medicines = useMedicines();
+  const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Medicine | null>(null);
   const [qty, setQty] = useState(1);
@@ -122,6 +124,7 @@ const Billing = () => {
       );
 
       const billDoc = await addDoc(collection(db, "bills"), {
+        pharmacyId: profile?.pharmacyId ?? null,
         items: cart.map((i) => ({
           medicineId: i.medicineId,
           name: i.name,
