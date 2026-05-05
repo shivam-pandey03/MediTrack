@@ -167,7 +167,7 @@ export const getMedicineStatus = (m: Medicine): MedicineStatus => {
 };
 
 export const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
