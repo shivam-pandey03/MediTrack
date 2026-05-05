@@ -126,7 +126,7 @@ export const MedicineFormDialog = ({ open, onOpenChange, initial, prefill }: Pro
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="price">Price per unit ($)</Label>
+            <Label htmlFor="price">Price per unit (₹)</Label>
             <Input id="price" type="number" min={0} step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
             {errors.price && <p className="text-xs text-destructive">{errors.price}</p>}
           </div>
