@@ -1,11 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Package, AlertTriangle, CalendarClock, PackageX, ArrowUpRight, BellRing, XCircle, Clock, PackageMinus } from "lucide-react";
 import { useMedicines, getMedicineStatus, formatDate, formatCurrency } from "@/lib/medicines-store";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth-context";
+
+const getISTGreeting = () => {
+  const nowIST = new Date(Date.now() + (new Date().getTimezoneOffset() + 330) * 60000);
+  const h = nowIST.getHours();
+  if (h >= 5 && h < 12) return "Good Morning ☀️";
+  if (h >= 12 && h < 17) return "Good Afternoon 🌤️";
+  if (h >= 17 && h < 21) return "Good Evening 🌆";
+  return "Good Night 🌙";
+};
 
 const Dashboard = () => {
   const medicines = useMedicines();
+  const { profile } = useAuth();
+  const [greeting, setGreeting] = useState(getISTGreeting);
+  useEffect(() => {
+    const id = setInterval(() => setGreeting(getISTGreeting()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const stats = useMemo(() => {
     let low = 0, near = 0, out = 0;
@@ -83,7 +99,9 @@ const Dashboard = () => {
     <div className="mx-auto max-w-7xl space-y-8">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Welcome back, Dr. Vance</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {greeting}{profile?.pharmacyName ? `, ${profile.pharmacyName}` : ""}!
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">Here's what's happening across your pharmacy today.</p>
         </div>
         <Link to="/inventory" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
