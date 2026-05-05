@@ -324,7 +324,7 @@ const Billing = () => {
         </aside>
       </div>
 
-      {bill && <BillReceipt bill={bill} onClose={() => setBill(null)} onPrint={printBill} />}
+      {bill && <BillReceipt bill={bill} pharmacyName={profile?.pharmacyName ?? ""} onClose={() => setBill(null)} onPrint={printBill} />}
     </div>
   );
 };
