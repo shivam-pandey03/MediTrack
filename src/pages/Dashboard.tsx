@@ -100,7 +100,7 @@ const Dashboard = () => {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
-            {greeting}{profile?.pharmacyName ? `, ${profile.pharmacyName}` : ""}!
+            {greeting}{profile?.ownerName ? `, ${profile.ownerName}` : ""}!
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">Here's what's happening across your pharmacy today.</p>
         </div>
