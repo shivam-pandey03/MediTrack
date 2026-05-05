@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Pill, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,21 +44,19 @@ export function AIChatbot() {
     setLoading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        systemInstruction: SYSTEM_PROMPT,
-      });
-
-      const chat = model.startChat({
-        history: messages.map((m) => ({
-          role: m.role,
-          parts: [{ text: m.content }],
-        })),
-      });
-
-      const result = await chat.sendMessage(trimmed);
-      const reply = result.response.text();
+      const userMessage = `${SYSTEM_PROMPT}\n\nUser: ${trimmed}`;
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: userMessage }] }],
+          }),
+        }
+      );
+      const data = await response.json();
+      const reply = data.candidates[0].content.parts[0].text;
       setMessages((m) => [...m, { role: "model", content: reply }]);
     } catch (e) {
       console.error(e);
