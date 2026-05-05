@@ -324,17 +324,19 @@ const Billing = () => {
         </aside>
       </div>
 
-      {bill && <BillReceipt bill={bill} onClose={() => setBill(null)} onPrint={printBill} />}
+      {bill && <BillReceipt bill={bill} pharmacyName={profile?.pharmacyName ?? ""} onClose={() => setBill(null)} onPrint={printBill} />}
     </div>
   );
 };
 
 const BillReceipt = ({
   bill,
+  pharmacyName,
   onClose,
   onPrint,
 }: {
   bill: GeneratedBill;
+  pharmacyName: string;
   onClose: () => void;
   onPrint: () => void;
 }) => {
@@ -350,7 +352,7 @@ const BillReceipt = ({
         </button>
 
         <div className="border-b border-border pb-4 text-center">
-          <div className="text-2xl font-bold tracking-tight text-primary">MediTrack 💊</div>
+          <div className="text-2xl font-bold tracking-tight text-primary">{pharmacyName}</div>
           <div className="text-xs text-muted-foreground">Pharmacy Invoice</div>
         </div>
 
@@ -402,7 +404,7 @@ const BillReceipt = ({
         </div>
 
         <div className="mt-6 text-center text-xs text-muted-foreground">
-          Thank you for shopping with MediTrack.
+          Thank you for shopping with {pharmacyName}.
         </div>
 
         <div className="mt-6 flex justify-end gap-2 print:hidden">
