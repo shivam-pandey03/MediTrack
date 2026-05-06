@@ -12,6 +12,8 @@ import Inventory from "./pages/Inventory";
 import Billing from "./pages/Billing";
 import NearbyPharmacies from "./pages/NearbyPharmacies";
 import Placeholder from "./pages/Placeholder";
+import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound.tsx";
@@ -39,6 +41,7 @@ const App = () => (
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/nearby" element={<NearbyPharmacies />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route
                 path="/reports"
                 element={
@@ -51,7 +54,7 @@ const App = () => (
                 path="/settings"
                 element={
                   <ProtectedRoute allow={["admin"]}>
-                    <Placeholder title="Settings" description="Workspace, user and notification settings are coming soon." />
+                    <Settings />
                   </ProtectedRoute>
                 }
               />

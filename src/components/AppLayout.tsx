@@ -1,17 +1,25 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X, LogOut, MapPin } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, BarChart3, Settings, Bell, Pill, Menu, X, LogOut, MapPin, BellRing, AlertTriangle, Clock, PackageX, PackageMinus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { setMedicinesPharmacy } from "@/lib/medicines-store";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useAlerts } from "@/lib/alerts";
+import { useEmailScheduler } from "@/lib/email-scheduler";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const allNav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/billing", label: "Billing", icon: Receipt },
   { to: "/nearby", label: "Nearby Pharmacies", icon: MapPin },
+  { to: "/notifications", label: "Notifications", icon: BellRing },
   { to: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
@@ -21,6 +29,7 @@ const titles: Record<string, string> = {
   "/inventory": "Medicine Inventory",
   "/billing": "Billing",
   "/nearby": "Nearby Pharmacies",
+  "/notifications": "Notifications",
   "/reports": "Reports",
   "/settings": "Settings",
 };
@@ -32,6 +41,7 @@ export const AppLayout = () => {
   const { profile, logout } = useAuth();
   const isStaff = profile?.role === "staff";
   const nav = allNav.filter((n) => !("adminOnly" in n && n.adminOnly) || !isStaff);
+  useEmailScheduler();
 
   useEffect(() => {
     setMedicinesPharmacy(profile?.pharmacyId ?? null);
@@ -143,10 +153,7 @@ export const AppLayout = () => {
             <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-              <Bell className="size-5" />
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-card" />
-            </button>
+            <NotificationBell />
             <div className="hidden text-right sm:block">
               <div className="text-sm font-medium leading-tight">
                 {profile?.pharmacyName || "MediTrack"}
@@ -169,5 +176,64 @@ export const AppLayout = () => {
         </main>
       </div>
     </div>
+  );
+};
+
+const NotificationBell = () => {
+  const a = useAlerts();
+  const items: { type: string; name: string; icon: any; color: string }[] = [];
+  a.expired.slice(0, 5).forEach((m) =>
+    items.push({ type: "Expired", name: m.name, icon: AlertTriangle, color: "text-destructive" }),
+  );
+  a.outOfStock.slice(0, 5).forEach((m) =>
+    items.push({ type: "Out of stock", name: m.name, icon: PackageX, color: "text-destructive" }),
+  );
+  a.nearExpiry.slice(0, 5).forEach(({ m }) =>
+    items.push({ type: "Near expiry", name: m.name, icon: Clock, color: "text-warning" }),
+  );
+  a.lowStock.slice(0, 5).forEach((m) =>
+    items.push({ type: "Low stock", name: m.name, icon: PackageMinus, color: "text-yellow-600" }),
+  );
+  const latest = items.slice(0, 5);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="relative rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <Bell className="size-5" />
+          {a.total > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-card">
+              {a.total > 99 ? "99+" : a.total}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="border-b px-4 py-3 text-sm font-semibold">Notifications</div>
+        {latest.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-muted-foreground">All clear ✅</div>
+        ) : (
+          <ul className="max-h-80 overflow-y-auto">
+            {latest.map((it, i) => {
+              const Icon = it.icon;
+              return (
+                <li key={i} className="flex items-start gap-3 border-b px-4 py-2.5 last:border-0">
+                  <Icon className={cn("mt-0.5 size-4 shrink-0", it.color)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{it.name}</div>
+                    <div className="text-xs text-muted-foreground">{it.type}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <NavLink
+          to="/notifications"
+          className="block border-t px-4 py-2.5 text-center text-sm font-medium text-primary hover:bg-muted"
+        >
+          View All
+        </NavLink>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
