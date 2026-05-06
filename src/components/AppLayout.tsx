@@ -41,7 +41,6 @@ export const AppLayout = () => {
   const { profile, logout } = useAuth();
   const isStaff = profile?.role === "staff";
   const nav = allNav.filter((n) => !("adminOnly" in n && n.adminOnly) || !isStaff);
-  const alerts = useAlerts();
   useEmailScheduler();
 
   useEffect(() => {
