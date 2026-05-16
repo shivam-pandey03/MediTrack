@@ -46,13 +46,21 @@ export function AIChatbot() {
     try {
       const userMessage = `${SYSTEM_PROMPT}\n\nUser: ${trimmed}`;
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: userMessage }] }],
-          }),
+            contents: [{ 
+              role: "user", 
+              parts: [{ text: userMessage }] 
+            }],
+            systemInstruction: {
+              parts: [{ 
+                text: "You are MediTrack AI, a helpful pharmacy assistant. Only answer medicine related questions such as medicine usage, dosage, side effects, drug interactions, storage instructions, and general health queries. If asked anything unrelated to medicine, politely say you can only help with medicine related questions. Always recommend consulting a doctor for serious medical advice. Keep answers short, clear and simple." 
+              }]
+            }
+          })
         }
       );
       const data = await response.json();
