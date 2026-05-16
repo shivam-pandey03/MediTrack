@@ -63,12 +63,24 @@ export function AIChatbot() {
           })
         }
       );
+
+      if (response.status === 429) {
+        setMessages((m) => [...m, { role: "model", content: "I'm receiving too many requests right now. Please wait 10 seconds and try again. ⏳" }]);
+        return;
+      }
+
       const data = await response.json();
+
+      if (response.status === 200 && (!data.candidates || data.candidates.length === 0)) {
+        setMessages((m) => [...m, { role: "model", content: "Sorry, no response received. Please try again." }]);
+        return;
+      }
+
       const reply = data.candidates[0].content.parts[0].text;
       setMessages((m) => [...m, { role: "model", content: reply }]);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setMessages((m) => [...m, { role: "model", content: "Sorry, something went wrong. Please try again." }]);
+      setMessages((m) => [...m, { role: "model", content: e?.message ? `Error: ${e.message}` : "Sorry, something went wrong. Please try again." }]);
     } finally {
       setLoading(false);
     }
